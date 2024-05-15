@@ -816,8 +816,9 @@ class Generator(AbstractODSGenerator):
             gain_loss: GainLoss = cast(GainLoss, entry)
             border_suffix: str = ""
             border_style = self.__get_border_style(gain_loss.taxable_event.timestamp.year, year)
-            if gain_loss.taxable_event.timestamp.year != year:
-                self.__tax_sheet_year_2_row[_AssetAndYear(asset, gain_loss.taxable_event.timestamp.year)] = row_index + 1
+            financial_year: int = YearlyGainLoss.get_financial_year_start(gain_loss.taxable_event.timestamp)
+            if financial_year != year:
+                self.__tax_sheet_year_2_row[_AssetAndYear(asset, financial_year)] = row_index + 1
             year = border_style.year
             border_suffix = border_style.border_suffix
             transparent_style: str = f"transparent{border_suffix}"

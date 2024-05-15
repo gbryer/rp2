@@ -55,7 +55,7 @@ class YearlyGainLoss:
         Configuration.type_check_decimal("fiat_gain_loss", self.fiat_gain_loss)
 
     @staticmethod
-    def _get_financial_year_start(date_: date) -> int:
+    def get_financial_year_start(date_: date) -> int:
         if date_.month < AU_FINANCIAL_YEAR_START_MONTH or (date_.month == AU_FINANCIAL_YEAR_START_MONTH and date_.day < AU_FINANCIAL_YEAR_START_DAY):
             return date_.year - 1
         else:
@@ -63,7 +63,7 @@ class YearlyGainLoss:
 
     @property
     def financial_year_start(self) -> int:
-        return self._get_financial_year_start(date(self.year, AU_FINANCIAL_YEAR_START_MONTH, AU_FINANCIAL_YEAR_START_DAY))
+        return self.get_financial_year_start(date(self.year, AU_FINANCIAL_YEAR_START_MONTH, AU_FINANCIAL_YEAR_START_DAY))
 
     def __eq__(self, other: object) -> bool:
         if not other:
@@ -161,7 +161,7 @@ class ComputedData:
             gain_loss: GainLoss = cast(GainLoss, entry)
             if gain_loss.taxable_event.timestamp.date() > to_date:
                 break
-            year = YearlyGainLoss._get_financial_year_start(gain_loss.taxable_event.timestamp.date())
+            year = YearlyGainLoss.get_financial_year_start(gain_loss.taxable_event.timestamp.date())
             key = _YearlyGainLossId(
                 year,
                 gain_loss.asset,
@@ -226,7 +226,7 @@ class ComputedData:
 
         yearly_gain_loss_list: List[YearlyGainLoss] = self._create_yearly_gain_loss_list(unfiltered_gain_loss_set, to_date)
         LOGGER.debug("%s: Created yearly gain-loss list", input_data.asset)
-        self.__filtered_yearly_gain_loss_list: List[YearlyGainLoss] = self._filter_yearly_gain_loss_by_year(yearly_gain_loss_list, YearlyGainLoss._get_financial_year_start(from_date))
+        self.__filtered_yearly_gain_loss_list: List[YearlyGainLoss] = self._filter_yearly_gain_loss_by_year(yearly_gain_loss_list, YearlyGainLoss.get_financial_year_start(from_date))
 
         self.__filtered_in_transaction_set: TransactionSet = input_data.filtered_in_transaction_set
         self.__filtered_intra_transaction_set: TransactionSet = input_data.filtered_intra_transaction_set
