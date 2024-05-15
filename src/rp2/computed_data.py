@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 from dataclasses import dataclass
 from datetime import date
 from typing import Dict, List, Set, cast
@@ -31,6 +30,8 @@ from rp2.rp2_decimal import ZERO, RP2Decimal
 from rp2.rp2_error import RP2TypeError, RP2ValueError
 from rp2.transaction_set import TransactionSet
 
+AU_FINANCIAL_YEAR_START_MONTH = 7
+AU_FINANCIAL_YEAR_START_DAY = 1
 
 @dataclass(frozen=True, eq=True)
 class YearlyGainLoss:
@@ -52,6 +53,17 @@ class YearlyGainLoss:
         Configuration.type_check_decimal("fiat_amount", self.fiat_amount)
         Configuration.type_check_decimal("fiat_cost_basis", self.fiat_cost_basis)
         Configuration.type_check_decimal("fiat_gain_loss", self.fiat_gain_loss)
+
+    @staticmethod
+    def _get_financial_year_start(date_: date) -> int:
+        if date_.month < AU_FINANCIAL_YEAR_START_MONTH or (date_.month == AU_FINANCIAL_YEAR_START_MONTH and date_.day < AU_FINANCIAL_YEAR_START_DAY):
+            return date_.year - 1
+        else:
+            return date_.year
+
+    @property
+    def financial_year_start(self) -> int:
+        return self._get_financial_year_start(date(self.year, AU_FINANCIAL_YEAR_START_MONTH, AU_FINANCIAL_YEAR_START_DAY))
 
     def __eq__(self, other: object) -> bool:
         if not other:
@@ -133,7 +145,7 @@ class ComputedData:
 
     @staticmethod
     def _filter_yearly_gain_loss_by_year(unfiltered_yearly_gain_loss_list: List[YearlyGainLoss], from_year: int) -> List[YearlyGainLoss]:
-        return [y for y in unfiltered_yearly_gain_loss_list if y.year >= from_year]
+        return [y for y in unfiltered_yearly_gain_loss_list if y.financial_year_start >= from_year]
 
     # from_date is not used when computing yearly gain loss (because we always start at the beginning): only to_date is relevant.
     @staticmethod
@@ -149,8 +161,9 @@ class ComputedData:
             gain_loss: GainLoss = cast(GainLoss, entry)
             if gain_loss.taxable_event.timestamp.date() > to_date:
                 break
+            year = YearlyGainLoss._get_financial_year_start(gain_loss.taxable_event.timestamp.date())
             key = _YearlyGainLossId(
-                gain_loss.taxable_event.timestamp.year,
+                year,
                 gain_loss.asset,
                 gain_loss.taxable_event.transaction_type,
                 gain_loss.is_long_term_capital_gains(),
@@ -213,7 +226,7 @@ class ComputedData:
 
         yearly_gain_loss_list: List[YearlyGainLoss] = self._create_yearly_gain_loss_list(unfiltered_gain_loss_set, to_date)
         LOGGER.debug("%s: Created yearly gain-loss list", input_data.asset)
-        self.__filtered_yearly_gain_loss_list: List[YearlyGainLoss] = self._filter_yearly_gain_loss_by_year(yearly_gain_loss_list, from_date.year)
+        self.__filtered_yearly_gain_loss_list: List[YearlyGainLoss] = self._filter_yearly_gain_loss_by_year(yearly_gain_loss_list, YearlyGainLoss._get_financial_year_start(from_date))
 
         self.__filtered_in_transaction_set: TransactionSet = input_data.filtered_in_transaction_set
         self.__filtered_intra_transaction_set: TransactionSet = input_data.filtered_intra_transaction_set
@@ -301,7 +314,7 @@ class ComputedData:
 
     @property
     def yearly_gain_loss_list(self) -> List[YearlyGainLoss]:
-        """List of gain/loss summaries in this ComputedData instance, grouped by year."""
+        """List of gain/loss summaries in this ComputedData instance, grouped by financial year."""
         return self.__filtered_yearly_gain_loss_list
 
     @property
@@ -368,7 +381,7 @@ class ComputedData:
 def _yearly_gain_loss_sort_criteria(yearly_gain_loss: YearlyGainLoss) -> str:
     return (
         f"{yearly_gain_loss.asset}"
-        f" {yearly_gain_loss.year}"
+        f" {yearly_gain_loss.financial_year_start}"
         f" {'LONG' if yearly_gain_loss.is_long_term_capital_gains else 'SHORT'}"
         f" {yearly_gain_loss.transaction_type.value}"
     )

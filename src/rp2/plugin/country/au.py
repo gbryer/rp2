@@ -41,7 +41,7 @@ class AU(AbstractCountry):
         return {
             "open_positions",
             "rp2_full_report",
-            "au.tax_report_au",
+            # "au.tax_report_au",
         }
 
     # Default language to use at report generation if the user doesn't specify it on the command line (in ISO 639-1 format)
